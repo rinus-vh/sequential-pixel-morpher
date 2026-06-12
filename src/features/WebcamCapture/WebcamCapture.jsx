@@ -1,4 +1,4 @@
-import { Button } from '@6njp/prototype-library'
+import { Button, Icon } from '@6njp/prototype-library'
 import { Camera, X, CircleDot } from 'lucide-react'
 
 import styles from './WebcamCapture.module.css'
@@ -52,7 +52,7 @@ export function WebcamCapture({ onCapture }) {
   return (
     <>
       <button type='button' className={styles.trigger} onClick={open}>
-        <Camera className={styles.triggerIcon} />
+        <Icon icon={Camera} layoutClassName={styles.triggerIcon} />
         <span>Take a photo</span>
       </button>
 
@@ -64,7 +64,7 @@ export function WebcamCapture({ onCapture }) {
             <div className={styles.dialogHeader}>
               <span className={styles.dialogTitle}>Webcam</span>
               <button type='button' className={styles.closeButton} onClick={close}>
-                <X className={styles.closeIcon} />
+                <Icon icon={X} layoutClassName={styles.closeIcon} />
               </button>
             </div>
             <video

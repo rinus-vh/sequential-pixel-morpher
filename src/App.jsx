@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { Diameter } from 'lucide-react'
 import { Grid, Header, Panel } from '@6njp/prototype-library'
 import { getThemeVariables } from '@6njp/prototype-library/machinery'
 
@@ -109,6 +110,8 @@ export default function App() {
   return (
     <main style={themeVariables} className={styles.app}>
       <Header
+        title='Sequential Pixel Sorter'
+        logo={Diameter}
         onToggleTheme={() => setIsDark(d => !d)}
         layoutClassName={styles.headerLayout}
         {...{ isDark }}

@@ -1,5 +1,5 @@
 import { Play, Pause, Repeat } from 'lucide-react'
-import { Slider } from '@6njp/prototype-library'
+import { Icon, Slider } from '@6njp/prototype-library'
 
 import styles from './OutputPanel.module.css'
 
@@ -50,7 +50,7 @@ export function OutputPanel({
               aria-label='Toggle loop'
               className={cx(styles.iconButton, isLooping && styles.isActive)}
             >
-              <Repeat className={styles.buttonIcon} />
+              <Icon icon={Repeat} layoutClassName={styles.buttonIcon} />
             </button>
 
             <button
@@ -60,8 +60,8 @@ export function OutputPanel({
               className={styles.iconButton}
             >
               {isPlaying
-                ? <Pause className={styles.buttonIcon} />
-                : <Play className={styles.buttonIcon} />
+                ? <Icon icon={Pause} layoutClassName={styles.buttonIcon} />
+                : <Icon icon={Play} layoutClassName={styles.buttonIcon} />
               }
             </button>
 

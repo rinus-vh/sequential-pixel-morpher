@@ -1,3 +1,4 @@
+import { Icon } from '@6njp/prototype-library'
 import { Upload } from 'lucide-react'
 
 import styles from './UploadZone.module.css'
@@ -47,7 +48,7 @@ export function UploadZone({ onImage }) {
         className={styles.input}
         onChange={onFileChange}
       />
-      <Upload className={styles.icon} />
+      <Icon icon={Upload} layoutClassName={styles.icon} />
       <span className={styles.primary}>Drop image here</span>
       <span className={styles.secondary}>or click to select</span>
     </button>
