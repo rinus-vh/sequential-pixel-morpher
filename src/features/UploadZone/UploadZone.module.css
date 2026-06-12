@@ -1,0 +1,41 @@
+.component {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 32px 16px;
+  border: 1.5px dashed color-mix(in srgb, var(--color) 40%, transparent);
+  border-radius: 8px;
+  background: none;
+  color: var(--color);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+
+  &:hover,
+  &.isDragOver {
+    border-color: var(--color);
+    background: color-mix(in srgb, var(--color) 6%, transparent);
+  }
+}
+
+.input {
+  display: none;
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.6;
+}
+
+.primary {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.secondary {
+  font-size: 12px;
+  opacity: 0.5;
+}

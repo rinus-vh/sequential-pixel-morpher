@@ -1,0 +1,58 @@
+.component {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  opacity: 0.5;
+}
+
+.uploadGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.imagePreview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.thumb {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--color) 20%, transparent);
+}
+
+.imageDims {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.generateButton {
+  width: 100%;
+}
+
+.actionButton {
+  width: 100%;
+}
