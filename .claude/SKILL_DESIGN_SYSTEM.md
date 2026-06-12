@@ -50,7 +50,7 @@ For every UI element the current task requires, work through this decision tree:
    → Create it **in the library**, at
    `/Volumes/Development/prototype-library/src/features/buildingBlocks/ComponentName/`,
    add its `export *` line to the library's `index.js`, then import it here.
-   (Be on local sources: `pnpm sources:local`.) Lint it in the library dir.
+   (Be on local sources: `pnpm source:local`.) Lint it in the library dir.
    Flag it: *"Created [Name] in @6njp/prototype-library — not covered by design system."*
 
 **Default to reuse. The burden of proof is on creation.**

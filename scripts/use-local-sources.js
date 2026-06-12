@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 // Ideal for developing the plugins or the component library alongside a prototype.
 //
 // Never commit this state — the pre-push guard (scripts/check-remote-sources.js)
-// blocks any push while these point local. Run `pnpm run sources:remote` first.
+// blocks any push while these point local. Run `pnpm run source:remote` first.
 
 const pkgPath = resolve(import.meta.dirname, '../package.json')
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))

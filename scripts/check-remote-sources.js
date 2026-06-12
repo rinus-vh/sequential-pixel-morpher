@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 
 // Pre-push guard. Validates the package.json in the COMMIT(S) being pushed — NOT
 // the working tree — so a commit that still references local @6njp sources
-// (file:/link:) can't reach GitHub, even if you've since run `sources:remote`
+// (file:/link:) can't reach GitHub, even if you've since run `source:remote`
 // locally. (The working tree can be clean while the committed snapshot is not.)
 //
 // git pipes the push payload to stdin, one line per ref:
@@ -51,7 +51,7 @@ if (offending.length) {
   console.error('\n✖ Push blocked — the commit being pushed references LOCAL @6njp sources:\n')
   console.error([...new Set(offending)].join('\n'))
   console.error('\nThe committed package.json must use github: sources. Fix it, then push again:\n')
-  console.error('  pnpm run sources:remote')
+  console.error('  pnpm run source:remote')
   console.error('  git add package.json pnpm-lock.yaml')
   console.error('  git commit --amend --no-edit     # fold into the same commit (or make a new one)')
   console.error('  git push\n')

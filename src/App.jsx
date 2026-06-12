@@ -1,11 +1,11 @@
 import JSZip from 'jszip'
-
 import { Grid, Header, Panel } from '@6njp/prototype-library'
 import { getThemeVariables } from '@6njp/prototype-library/machinery'
 
-import { generateMorphFrames } from '@/pixelSorter.js'
 import { SettingsPanel } from '@/features/SettingsPanel/SettingsPanel.jsx'
 import { OutputPanel } from '@/features/OutputPanel/OutputPanel.jsx'
+
+import { generateMorphFrames } from '@/pixelSorter.js'
 
 import styles from './App.module.css'
 
@@ -108,15 +108,15 @@ export default function App() {
 
   return (
     <main style={themeVariables} className={styles.app}>
-      <Header onToggleTheme={() => setIsDark(d => !d)} layoutClassName={styles.headerLayout} isDark={isDark} navItems={[]} />
+      <Header
+        onToggleTheme={() => setIsDark(d => !d)}
+        layoutClassName={styles.headerLayout}
+        {...{ isDark }}
+      />
 
       <Grid layoutClassName={styles.gridLayout}>
         <Panel title='Settings' minWidth={7} minHeight={10}>
           <SettingsPanel
-            image={image}
-            direction={direction}
-            frameCount={frameCount}
-            isGenerating={isGenerating}
             hasFrames={frames.length > 0}
             onImage={setImage}
             onDirection={setDirection}
@@ -124,27 +124,23 @@ export default function App() {
             onGenerate={handleGenerate}
             onDiscard={handleDiscard}
             onDownload={handleDownload}
+            {...{ image, direction, frameCount, isGenerating }}
           />
         </Panel>
 
         <Panel title='Output' minWidth={10} minHeight={10}>
           <OutputPanel
-            frames={frames}
-            currentFrame={currentFrame}
-            isPlaying={isPlaying}
-            isLooping={isLooping}
-            isGenerating={isGenerating}
-            generationProgress={generationProgress}
             onFrameChange={handleFrameChange}
             onTogglePlay={() => {
-      if (!isPlaying) {
-        // Starting playback: always go forward, wrap to start if at the end
-        setPlayDir(1)
-        if (currentFrame >= frames.length - 1) setCurrentFrame(0)
-      }
-      setIsPlaying(p => !p)
-    }}
+              if (!isPlaying) {
+                // Starting playback: always go forward, wrap to start if at the end
+                setPlayDir(1)
+                if (currentFrame >= frames.length - 1) setCurrentFrame(0)
+              }
+              setIsPlaying(p => !p)
+            }}
             onToggleLoop={() => setIsLooping(l => !l)}
+            {...{ frames, currentFrame, isPlaying, isLooping, isGenerating, generationProgress }}
           />
         </Panel>
       </Grid>

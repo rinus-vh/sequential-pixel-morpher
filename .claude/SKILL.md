@@ -68,18 +68,18 @@ Two ES-module scripts in `scripts/` flip **all three** packages at once, then re
 you to install:
 
 ```bash
-pnpm sources:local    # → file: paths on this machine (live editing)
-pnpm sources:remote   # → github: refs (commit / CI / share)
+pnpm source:local    # → file: paths on this machine (live editing)
+pnpm source:remote   # → github: refs (commit / CI / share)
 # (equivalent to: node scripts/use-local-sources.js  /  use-remote-sources.js)
 ```
 
 `use-local-sources.js` rewrites the two lint plugins in `devDependencies` and the
 library in `dependencies` to `file:` paths; `use-remote-sources.js` rewrites them to
 `github:` refs. Always run `pnpm install` afterward (the `sources:*` npm scripts do
-this for you).
+this for you). The scripts are named `source:local` / `source:remote` in this repo.
 
 **Rule of thumb:** develop on `file:`, commit on `github:`. Before committing a
-prototype, run `pnpm sources:remote && pnpm install` so the lockfile/`package.json`
+prototype, run `pnpm source:remote && pnpm install` so the lockfile/`package.json`
 reference GitHub, not local paths.
 
 > **Stylelint store-cache note:** `pnpm install` after switching to a local plugin
@@ -156,12 +156,12 @@ inject).
 
 ### Editing a component
 
-1. `pnpm sources:local && pnpm install` (if not already on local).
+1. `pnpm source:local && pnpm install` (if not already on local).
 2. Edit the component in `/Volumes/Development/prototype-library/src/...`.
 3. **Re-run `pnpm install` in the prototype to re-sync the `file:` copy** (it is not
    live/HMR), then start/refresh the dev server. Lint the library in its own dir
    (`pnpm lint` / `pnpm lint:css`).
-4. When done: in the prototype, `pnpm sources:remote && pnpm install` before
+4. When done: in the prototype, `pnpm source:remote && pnpm install` before
    committing (and push the library repo separately).
 
 > The library has **no `@` alias** (a published package can't), so its internal
