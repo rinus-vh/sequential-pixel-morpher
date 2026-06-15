@@ -1,5 +1,7 @@
-import { Play, Pause, Repeat } from 'lucide-react'
-import { Icon, Slider } from '@6njp/prototype-library'
+import { Play, Pause, Repeat, Square } from 'lucide-react'
+import { ActionIconButton, ActionIconButtonToggle, FileUpload, Slider } from '@6njp/prototype-library'
+
+import { WebcamCapture } from '@/features/WebcamCapture/WebcamCapture.jsx'
 
 import styles from './OutputPanel.module.css'
 
@@ -10,25 +12,38 @@ export function OutputPanel({
   isLooping,
   isGenerating,
   generationProgress,
+  image,
   onFrameChange,
   onTogglePlay,
+  onStop,
   onToggleLoop,
+  onImage,
 }) {
   const hasFrames = frames.length > 0
   const frameUrl = frames[currentFrame]
+
+  function handleFile(file) {
+    const url = URL.createObjectURL(file)
+    createImageBitmap(file).then(data => onImage({ url, data }))
+  }
 
   return (
     <div className={styles.component}>
       <div className={styles.viewport}>
         {frameUrl
           ? <img src={frameUrl} alt={`Frame ${currentFrame + 1}`} className={styles.frame} />
-          : (
-            <div className={styles.empty}>
-              <span className={styles.emptyText}>
-                {isGenerating ? 'Generating frames…' : 'No image loaded'}
-              </span>
-            </div>
-          )
+          : image
+            ? <img src={image.url} alt='Input' className={styles.frame} />
+            : (
+              <div className={styles.uploadZone}>
+                <FileUpload
+                  label='Drop image here'
+                  accept={['image/*']}
+                  onFile={handleFile}
+                />
+                <WebcamCapture onCapture={onImage} />
+              </div>
+            )
         }
 
         {isGenerating && (
@@ -41,35 +56,37 @@ export function OutputPanel({
         )}
       </div>
 
-      {hasFrames && (
-        <div className={styles.controls}>
-          <div className={styles.playback}>
-            <button
-              type='button'
-              onClick={onToggleLoop}
-              aria-label='Toggle loop'
-              className={cx(styles.iconButton, isLooping && styles.isActive)}
-            >
-              <Icon icon={Repeat} layoutClassName={styles.buttonIcon} />
-            </button>
-
-            <button
-              type='button'
-              onClick={onTogglePlay}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              className={styles.iconButton}
-            >
-              {isPlaying
-                ? <Icon icon={Pause} layoutClassName={styles.buttonIcon} />
-                : <Icon icon={Play} layoutClassName={styles.buttonIcon} />
-              }
-            </button>
-
+      <div className={styles.controls}>
+        <div className={styles.toolbar}>
+          <ActionIconButtonToggle
+            icon={Repeat}
+            isActive={isLooping}
+            onChange={onToggleLoop}
+            title='Loop'
+            style='transparent'
+          />
+          <ActionIconButton
+            icon={Square}
+            onClick={onStop}
+            title='Stop'
+            style='transparent'
+            disabled={!hasFrames}
+          />
+          <ActionIconButton
+            icon={isPlaying ? Pause : Play}
+            onClick={onTogglePlay}
+            title={isPlaying ? 'Pause' : 'Play'}
+            style='transparent'
+            disabled={!hasFrames}
+          />
+          {hasFrames && (
             <span className={styles.frameCounter}>
               {currentFrame + 1} / {frames.length}
             </span>
-          </div>
+          )}
+        </div>
 
+        {hasFrames && (
           <Slider
             value={currentFrame}
             onChange={onFrameChange}
@@ -78,8 +95,8 @@ export function OutputPanel({
             step={1}
             layoutClassName={styles.seekerLayout}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

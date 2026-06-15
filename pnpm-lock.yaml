@@ -10,19 +10,25 @@ importers:
     dependencies:
       '@6njp/prototype-library':
         specifier: github:rinus-vh/prototype-library
-        version: git+https://git@github.com:rinus-vh/prototype-library.git#c984157893bc6f43197cfd1857446d3ce363da04(@floating-ui/react@0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@use-gesture/react@10.3.1(react@19.2.7))(lucide-react@1.17.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: git+https://git@github.com:rinus-vh/prototype-library.git#41d52208cfe9e1e41ab788ebb8e4adc0e8d733a6(@floating-ui/react@0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@use-gesture/react@10.3.1(react@19.2.7))(lucide-react@1.17.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@floating-ui/react':
         specifier: ^0.27.19
         version: 0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@use-gesture/react':
         specifier: ^10.3.1
         version: 10.3.1(react@19.2.7)
+      i:
+        specifier: ^0.3.7
+        version: 0.3.7
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
+      pnpm:
+        specifier: ^11.7.0
+        version: 11.7.0
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -76,8 +82,8 @@ packages:
     resolution: {commit: bc810c8f691b7ddbab7b6e0d40dce7f28c400d66, path: eslint-plugin, repo: git@github.com:rinus-vh/plugins.git, type: git}
     version: 1.0.0
 
-  '@6njp/prototype-library@git+https://git@github.com:rinus-vh/prototype-library.git#c984157893bc6f43197cfd1857446d3ce363da04':
-    resolution: {commit: c984157893bc6f43197cfd1857446d3ce363da04, repo: git@github.com:rinus-vh/prototype-library.git, type: git}
+  '@6njp/prototype-library@git+https://git@github.com:rinus-vh/prototype-library.git#41d52208cfe9e1e41ab788ebb8e4adc0e8d733a6':
+    resolution: {commit: 41d52208cfe9e1e41ab788ebb8e4adc0e8d733a6, repo: git@github.com:rinus-vh/prototype-library.git, type: git}
     version: 0.0.1
     engines: {node: '>=22.0.0'}
     hasBin: true
@@ -1513,6 +1519,10 @@ packages:
     resolution: {integrity: sha512-n6l5uca7/y5joxZ3LUePhzmBFUJ+U2YWzhMa8XUTecSeSlQiZdF5XAd/Q3/WUl0VsXgUwWi8I7CNIwdI5WN1SQ==}
     engines: {node: '>=20.10'}
 
+  i@0.3.7:
+    resolution: {integrity: sha512-FYz4wlXgkQwIPqhzC5TdNMLSE5+GS1IIDJZY/1ZiEPCT2S3COUVZeT5OW4BmW4r5LHLQuOosSwsvnroG9GR59Q==}
+    engines: {node: '>=0.4'}
+
   icss-utils@5.1.0:
     resolution: {integrity: sha512-soFhflCVWLfRNOPU3iv5Z9VUdT44xFRbzjLsEzSr5AQmgqPMTHdU3PMT1Cf1ssx8fLNJDA1juftYl+PUcv3MqA==}
     engines: {node: ^10 || ^12 || >= 14}
@@ -2009,6 +2019,11 @@ packages:
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
+
+  pnpm@11.7.0:
+    resolution: {integrity: sha512-GcyFLBIMcSV2DyRD7mvgyltA+fUFmN4aCaHxd1A+AQ5Xwjx3ZG4B52HeWb+HT7IqM5jDOrlpH8E+uUa28PTWIA==}
+    engines: {node: '>=22.13'}
+    hasBin: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -2511,7 +2526,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  '@6njp/prototype-library@git+https://git@github.com:rinus-vh/prototype-library.git#c984157893bc6f43197cfd1857446d3ce363da04(@floating-ui/react@0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@use-gesture/react@10.3.1(react@19.2.7))(lucide-react@1.17.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@6njp/prototype-library@git+https://git@github.com:rinus-vh/prototype-library.git#41d52208cfe9e1e41ab788ebb8e4adc0e8d733a6(@floating-ui/react@0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@use-gesture/react@10.3.1(react@19.2.7))(lucide-react@1.17.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@floating-ui/react': 0.27.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@use-gesture/react': 10.3.1(react@19.2.7)
@@ -4161,6 +4176,8 @@ snapshots:
 
   html-tags@5.1.0: {}
 
+  i@0.3.7: {}
+
   icss-utils@5.1.0(postcss@8.5.15):
     dependencies:
       postcss: 8.5.15
@@ -4611,6 +4628,8 @@ snapshots:
   picomatch@2.3.2: {}
 
   picomatch@4.0.4: {}
+
+  pnpm@11.7.0: {}
 
   possible-typed-array-names@1.1.0: {}
 

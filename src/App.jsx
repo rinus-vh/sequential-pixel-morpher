@@ -102,6 +102,11 @@ export default function App() {
     setGenerationProgress(0)
   }
 
+  function handleStop() {
+    setIsPlaying(false)
+    setCurrentFrame(0)
+  }
+
   function handleFrameChange(v) {
     setIsPlaying(false)
     setCurrentFrame(v)
@@ -121,7 +126,6 @@ export default function App() {
         <Panel title='Settings' minWidth={4} minHeight={9}>
           <SettingsPanel
             hasFrames={frames.length > 0}
-            onImage={setImage}
             onDirection={setDirection}
             onFrameCount={setFrameCount}
             onGenerate={handleGenerate}
@@ -133,17 +137,18 @@ export default function App() {
 
         <Panel title='Output' minWidth={8} minHeight={9}>
           <OutputPanel
+            onImage={setImage}
             onFrameChange={handleFrameChange}
             onTogglePlay={() => {
               if (!isPlaying) {
-                // Starting playback: always go forward, wrap to start if at the end
                 setPlayDir(1)
                 if (currentFrame >= frames.length - 1) setCurrentFrame(0)
               }
               setIsPlaying(p => !p)
             }}
+            onStop={handleStop}
             onToggleLoop={() => setIsLooping(l => !l)}
-            {...{ frames, currentFrame, isPlaying, isLooping, isGenerating, generationProgress }}
+            {...{ frames, currentFrame, isPlaying, isLooping, isGenerating, generationProgress, image }}
           />
         </Panel>
       </Grid>

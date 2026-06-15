@@ -1,7 +1,7 @@
-import { Button, FileUpload, RadioGroup, Slider, LabelUppercaseSm } from '@6njp/prototype-library'
-import { Zap, Trash2, Download } from 'lucide-react'
+import { CheckboxBar, GhostButton, LabelUppercaseSm, Slider } from '@6njp/prototype-library'
+import { Trash2, Download, Zap } from 'lucide-react'
 
-import { WebcamCapture } from '@/features/WebcamCapture/WebcamCapture.jsx'
+import { Button } from '@6njp/prototype-library'
 
 import styles from './SettingsPanel.module.css'
 
@@ -13,54 +13,25 @@ const DIRECTION_OPTIONS = [
 ]
 
 export function SettingsPanel({
-  image,
   direction,
   frameCount,
   isGenerating,
   hasFrames,
-  onImage,
+  image,
   onDirection,
   onFrameCount,
   onGenerate,
   onDiscard,
   onDownload,
 }) {
-  function handleFile(file) {
-    const url = URL.createObjectURL(file)
-    createImageBitmap(file).then(data => onImage({ url, data }))
-  }
-
   return (
     <div className={styles.component}>
       <section className={styles.section}>
-        <LabelUppercaseSm layoutClassName={styles.sectionLabel}>Image</LabelUppercaseSm>
-        {image
-          ? (
-            <div className={styles.imagePreview}>
-              <img src={image.url} alt='Input' className={styles.thumb} />
-              <span className={styles.imageDims}>{image.data.width} × {image.data.height}px</span>
-            </div>
-          )
-          : (
-            <div className={styles.uploadGroup}>
-              <FileUpload
-                label='Drop image here'
-                accept={['image/*']}
-                onFile={handleFile}
-              />
-              <WebcamCapture onCapture={onImage} />
-            </div>
-          )
-        }
-      </section>
-
-      <section className={styles.section}>
         <LabelUppercaseSm layoutClassName={styles.sectionLabel}>Sort Direction</LabelUppercaseSm>
-        <RadioGroup
-          name='direction'
+        <CheckboxBar
+          options={DIRECTION_OPTIONS}
           value={direction}
           onChange={onDirection}
-          options={DIRECTION_OPTIONS}
         />
       </section>
 
@@ -86,21 +57,21 @@ export function SettingsPanel({
             layoutClassName={styles.actionButton}
           />
         )}
-        {image && (
-          <Button
-            label='Discard'
-            icon={Trash2}
-            variant='outline'
-            onClick={onDiscard}
-            layoutClassName={styles.actionButton}
-          />
-        )}
         <Button
           label={isGenerating ? 'Generating…' : 'Generate'}
           icon={Zap}
           onClick={onGenerate}
           layoutClassName={styles.generateButton}
         />
+        {image && (
+          <GhostButton
+            label='Discard image'
+            icon={Trash2}
+            color='orange'
+            onClick={onDiscard}
+            layoutClassName={styles.discardButton}
+          />
+        )}
       </div>
     </div>
   )
