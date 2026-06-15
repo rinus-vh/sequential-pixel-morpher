@@ -118,7 +118,7 @@ export default function App() {
       />
 
       <Grid layoutClassName={styles.gridLayout}>
-        <Panel title='Settings' minWidth={7} minHeight={10}>
+        <Panel title='Settings' minWidth={4} minHeight={9}>
           <SettingsPanel
             hasFrames={frames.length > 0}
             onImage={setImage}
@@ -131,7 +131,7 @@ export default function App() {
           />
         </Panel>
 
-        <Panel title='Output' minWidth={10} minHeight={10}>
+        <Panel title='Output' minWidth={8} minHeight={9}>
           <OutputPanel
             onFrameChange={handleFrameChange}
             onTogglePlay={() => {

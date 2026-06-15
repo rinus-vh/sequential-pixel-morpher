@@ -1,4 +1,4 @@
-import { Button, Icon } from '@6njp/prototype-library'
+import { Button, GhostButton, Icon } from '@6njp/prototype-library'
 import { Camera, X, CircleDot } from 'lucide-react'
 
 import styles from './WebcamCapture.module.css'
@@ -51,10 +51,13 @@ export function WebcamCapture({ onCapture }) {
 
   return (
     <>
-      <button type='button' className={styles.trigger} onClick={open}>
-        <Icon icon={Camera} layoutClassName={styles.triggerIcon} />
-        <span>Take a photo</span>
-      </button>
+      <GhostButton
+        label='Take a photo'
+        icon={Camera}
+        color='white'
+        onClick={open}
+        layoutClassName={styles.triggerLayout}
+      />
 
       {error && <p className={styles.error}>{error}</p>}
 
