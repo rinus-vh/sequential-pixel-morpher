@@ -1,109 +1,263 @@
 /**
- * Live pixel sorter — applies the same sweeping brightness-sort interpolation
- * as the static generator but on a continuous webcam stream.
+ * Live and static-image pixel sorters.
  *
- * Progress cycles 0→1→0 in a ping-pong loop. One full sweep (0→1) takes
- * `frameCount * 50 ms`, matching the static animation's playback speed so the
- * settings feel consistent between the two modes.
+ * Two algorithms, two different rendering formulas:
  *
- * Separate from pixelSorter.js so neither pipeline interferes with the other.
+ * 'swap'               — original formula: pixel at position x moves toward
+ *   sorted[x].originalX (interleaving sweep visual).
+ * 'sort-light-to-dark' — corrected formula: rank-r pixel moves FROM its
+ *   original position TO sorted position r (mathematically correct for
+ *   all permutations including descending sort).
+ *
+ * Dual direction: H pass runs first, V pass runs on its output.
  */
 
 function calcBrightness(r, g, b) {
   return 0.299 * r + 0.587 * g + 0.114 * b
 }
 
-/**
- * Renders one interpolated frame into `outputCanvas`.
- * Mirrors the renderFrame() logic in pixelSorter.js.
- */
-function renderLiveFrame(imageData, direction, progress, outputCanvas) {
-  const { data, width, height } = imageData
-  const ascending    = direction === 'left-to-right' || direction === 'top-to-bottom'
-  const isHorizontal = direction === 'left-to-right' || direction === 'right-to-left'
+function sortPixels(pixels, ascending) {
+  return [...pixels].sort((a, b) => ascending ? a.brightness - b.brightness : b.brightness - a.brightness)
+}
 
-  const out     = new ImageData(width, height)
-  const outData = out.data
+// ── Inner lerp loops ─────────────────────────────────────────────────────────
 
-  if (isHorizontal) {
-    for (let y = 0; y < height; y++) {
-      const row = []
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4
-        row.push({ r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3],
-                   brightness: calcBrightness(data[i], data[i + 1], data[i + 2]),
-                   originalX: x })
-      }
+// Writes sorted-and-lerped rows from (row[], sortedRow[]) into dst ImageData.
+// No sorting happens here — sort data is pre-computed.
+function lerpRowsToBuffer(rows, sortedRows, width, height, isSortLtD, progress, dst) {
+  const dstData = dst.data
+  for (let y = 0; y < height; y++) {
+    const row    = rows[y]
+    const sorted = sortedRows[y]
+    const lp     = Math.max(0, Math.min(1, progress * 2 - y / height))
 
-      const sorted      = [...row].sort((a, b) => ascending ? a.brightness - b.brightness : b.brightness - a.brightness)
-      const lineProgress = Math.max(0, Math.min(1, progress * 2 - y / height))
-
-      for (let x = 0; x < width; x++) {
-        const px     = row[x]
-        const target = sorted[x]
-        const cx     = Math.round(px.originalX + (target.originalX - px.originalX) * lineProgress)
+    if (isSortLtD) {
+      for (let r = 0; r < width; r++) {
+        const px = sorted[r]
+        const cx = Math.round(px.originalX + (r - px.originalX) * lp)
         if (cx >= 0 && cx < width) {
           const i = (y * width + cx) * 4
-          outData[i]     = px.r
-          outData[i + 1] = px.g
-          outData[i + 2] = px.b
-          outData[i + 3] = px.a
+          dstData[i] = px.r; dstData[i+1] = px.g; dstData[i+2] = px.b; dstData[i+3] = px.a
         }
       }
-    }
-  } else {
-    for (let x = 0; x < width; x++) {
-      const col = []
-      for (let y = 0; y < height; y++) {
-        const i = (y * width + x) * 4
-        col.push({ r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3],
-                   brightness: calcBrightness(data[i], data[i + 1], data[i + 2]),
-                   originalY: y })
-      }
-
-      const sorted      = [...col].sort((a, b) => ascending ? a.brightness - b.brightness : b.brightness - a.brightness)
-      const lineProgress = Math.max(0, Math.min(1, progress * 2 - x / width))
-
-      for (let y = 0; y < height; y++) {
-        const px     = col[y]
-        const target = sorted[y]
-        const cy     = Math.round(px.originalY + (target.originalY - px.originalY) * lineProgress)
-        if (cy >= 0 && cy < height) {
-          const i = (cy * width + x) * 4
-          outData[i]     = px.r
-          outData[i + 1] = px.g
-          outData[i + 2] = px.b
-          outData[i + 3] = px.a
+    } else {
+      for (let x = 0; x < width; x++) {
+        const px  = row[x]
+        const tgt = sorted[x]
+        const cx  = Math.round(px.originalX + (tgt.originalX - px.originalX) * lp)
+        if (cx >= 0 && cx < width) {
+          const i = (y * width + cx) * 4
+          dstData[i] = px.r; dstData[i+1] = px.g; dstData[i+2] = px.b; dstData[i+3] = px.a
         }
       }
     }
   }
-
-  outputCanvas.getContext('2d').putImageData(out, 0, 0)
 }
 
-/**
- * Starts a live pixel-sort animation loop.
- *
- * One sweep (0→1) takes `frameCount * 50 ms`, the same as the static
- * animation played back at one frame per 50 ms — so raising frameCount slows
- * the cycle and lowering it speeds it up.
- *
- * @param {HTMLVideoElement} videoEl
- * @param {HTMLCanvasElement} outputCanvas
- * @param {string} direction
- * @param {number} frameCount
- * @returns {{ setDirection: (d: string) => void, setFrameCount: (n: number) => void, stop: () => void }}
- */
-export function createLiveSorter(videoEl, outputCanvas, direction, frameCount) {
-  let active           = true
-  let currentDirection = direction
-  let currentFrameCount = frameCount
+// Writes sorted-and-lerped cols from (col[], sortedCol[]) into dst ImageData.
+function lerpColsToBuffer(cols, sortedCols, width, height, isSortLtD, progress, dst) {
+  const dstData = dst.data
+  for (let x = 0; x < width; x++) {
+    const col    = cols[x]
+    const sorted = sortedCols[x]
+    const lp     = Math.max(0, Math.min(1, progress * 2 - x / width))
 
-  // progress runs 0→1→0 in a ping-pong; playDir flips sign at each end.
-  let progress = 0
-  let playDir  = 1
-  let lastTime = null
+    if (isSortLtD) {
+      for (let r = 0; r < height; r++) {
+        const px = sorted[r]
+        const cy = Math.round(px.originalY + (r - px.originalY) * lp)
+        if (cy >= 0 && cy < height) {
+          const i = (cy * width + x) * 4
+          dstData[i] = px.r; dstData[i+1] = px.g; dstData[i+2] = px.b; dstData[i+3] = px.a
+        }
+      }
+    } else {
+      for (let y = 0; y < height; y++) {
+        const px  = col[y]
+        const tgt = sorted[y]
+        const cy  = Math.round(px.originalY + (tgt.originalY - px.originalY) * lp)
+        if (cy >= 0 && cy < height) {
+          const i = (cy * width + x) * 4
+          dstData[i] = px.r; dstData[i+1] = px.g; dstData[i+2] = px.b; dstData[i+3] = px.a
+        }
+      }
+    }
+  }
+}
+
+// ── Row/col extractors (with sorting) ────────────────────────────────────────
+
+function extractAndSortRows(imageData, hDirection, algorithm) {
+  const { data, width, height } = imageData
+  const ascending = algorithm === 'sort-light-to-dark'
+    ? hDirection === 'right-to-left'
+    : hDirection === 'left-to-right'
+  const rows = [], sortedRows = []
+  for (let y = 0; y < height; y++) {
+    const row = []
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      row.push({ r: data[i], g: data[i+1], b: data[i+2], a: data[i+3],
+                 brightness: calcBrightness(data[i], data[i+1], data[i+2]),
+                 originalX: x })
+    }
+    rows.push(row)
+    sortedRows.push(sortPixels(row, ascending))
+  }
+  return { rows, sortedRows }
+}
+
+function extractAndSortCols(imageData, vDirection, algorithm) {
+  const { data, width, height } = imageData
+  const ascending = algorithm === 'sort-light-to-dark'
+    ? vDirection === 'bottom-to-top'
+    : vDirection === 'top-to-bottom'
+  const cols = [], sortedCols = []
+  for (let x = 0; x < width; x++) {
+    const col = []
+    for (let y = 0; y < height; y++) {
+      const i = (y * width + x) * 4
+      col.push({ r: data[i], g: data[i+1], b: data[i+2], a: data[i+3],
+                 brightness: calcBrightness(data[i], data[i+1], data[i+2]),
+                 originalY: y })
+    }
+    cols.push(col)
+    sortedCols.push(sortPixels(col, ascending))
+  }
+  return { cols, sortedCols }
+}
+
+// ── Per-frame pass functions (sorting happens inside — for live use) ──────────
+
+function renderRowsToBuffer(srcData, direction, algorithm, progress, dstData) {
+  const { data, width, height } = srcData
+  const ascending = algorithm === 'sort-light-to-dark'
+    ? direction === 'right-to-left'
+    : direction === 'left-to-right'
+  const { rows, sortedRows } = extractAndSortRows(srcData, direction, algorithm)
+  lerpRowsToBuffer(rows, sortedRows, width, height, algorithm === 'sort-light-to-dark', progress, dstData)
+}
+
+function renderColsToBuffer(srcData, direction, algorithm, progress, dstData) {
+  const { data, width, height } = srcData
+  const { cols, sortedCols } = extractAndSortCols(srcData, direction, algorithm)
+  lerpColsToBuffer(cols, sortedCols, width, height, algorithm === 'sort-light-to-dark', progress, dstData)
+}
+
+// ── Main frame renderer (live, re-sorts every frame) ─────────────────────────
+
+function renderLiveFrame(imageData, hDirection, vDirection, algorithm, progress, outputCanvas) {
+  const { width, height } = imageData
+  const ctx = outputCanvas.getContext('2d')
+
+  if (hDirection && vDirection) {
+    const intermediate = new ImageData(width, height)
+    renderRowsToBuffer(imageData, hDirection, algorithm, progress, intermediate)
+    const final = new ImageData(width, height)
+    renderColsToBuffer(intermediate, vDirection, algorithm, progress, final)
+    ctx.putImageData(final, 0, 0)
+  } else if (hDirection) {
+    const out = new ImageData(width, height)
+    renderRowsToBuffer(imageData, hDirection, algorithm, progress, out)
+    ctx.putImageData(out, 0, 0)
+  } else if (vDirection) {
+    const out = new ImageData(width, height)
+    renderColsToBuffer(imageData, vDirection, algorithm, progress, out)
+    ctx.putImageData(out, 0, 0)
+  } else {
+    ctx.putImageData(imageData, 0, 0)
+  }
+}
+
+export { renderLiveFrame }
+
+// ── Pre-render: sort ONCE, lerp per frame (fast) ─────────────────────────────
+
+/**
+ * Generates all frames as ImageBitmaps by:
+ * 1. Sorting rows/cols once (the slow part)
+ * 2. Only lerping per frame (the fast part)
+ *
+ * For dual H+V: rows are pre-sorted (fast H pass), columns are still sorted per
+ * frame because V input changes each frame (H output varies with progress).
+ *
+ * onProgress receives values 0→1 as frames complete.
+ */
+export async function preRenderAllFrames(imageData, hDirection, vDirection, algorithm, frameCount, onProgress) {
+  const { width, height } = imageData
+  const isSortLtD = algorithm === 'sort-light-to-dark'
+
+  // Sort rows once if needed
+  let hData = null
+  if (hDirection) {
+    hData = extractAndSortRows(imageData, hDirection, algorithm)
+    await new Promise(r => setTimeout(r, 0))
+  }
+
+  // Sort cols once only for pure-V (H+V can't pre-sort V because its input changes per frame)
+  let vData = null
+  if (vDirection && !hDirection) {
+    vData = extractAndSortCols(imageData, vDirection, algorithm)
+    await new Promise(r => setTimeout(r, 0))
+  }
+
+  const renderCanvas    = document.createElement('canvas')
+  renderCanvas.width    = width
+  renderCanvas.height   = height
+  const ctx             = renderCanvas.getContext('2d')
+  const bitmaps         = []
+
+  for (let f = 0; f <= frameCount; f++) {
+    const p = f / frameCount
+
+    if (!hDirection && !vDirection) {
+      ctx.putImageData(imageData, 0, 0)
+
+    } else if (hData && !vDirection) {
+      // Pure H — lerp only, no sort
+      const out = new ImageData(width, height)
+      lerpRowsToBuffer(hData.rows, hData.sortedRows, width, height, isSortLtD, p, out)
+      ctx.putImageData(out, 0, 0)
+
+    } else if (vData) {
+      // Pure V — lerp only, no sort
+      const out = new ImageData(width, height)
+      lerpColsToBuffer(vData.cols, vData.sortedCols, width, height, isSortLtD, p, out)
+      ctx.putImageData(out, 0, 0)
+
+    } else {
+      // Dual H+V: H is pre-sorted (fast lerp), V still sorts per frame
+      const hOut = new ImageData(width, height)
+      lerpRowsToBuffer(hData.rows, hData.sortedRows, width, height, isSortLtD, p, hOut)
+      const vOut = new ImageData(width, height)
+      renderColsToBuffer(hOut, vDirection, algorithm, p, vOut)
+      ctx.putImageData(vOut, 0, 0)
+    }
+
+    const bmp = await createImageBitmap(ctx.getImageData(0, 0, width, height))
+    bitmaps.push(bmp)
+    onProgress?.(f / frameCount)
+    if (f % 4 === 0) await new Promise(r => setTimeout(r, 0))
+  }
+
+  return bitmaps
+}
+
+// ── Live feed sorter (webcam) ────────────────────────────────────────────────
+
+export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, algorithm, frameCount, onTick) {
+  let active            = true
+  let currentHDirection = hDirection
+  let currentVDirection = vDirection
+  let currentAlgorithm  = algorithm
+  let currentFrameCount = frameCount
+  let looping           = true
+  let paused            = false
+
+  let progress    = 0
+  let playDir     = 1
+  let lastTime    = null
+  let lastTickTime = 0
 
   const srcCanvas = document.createElement('canvas')
   const srcCtx    = srcCanvas.getContext('2d', { willReadFrequently: true })
@@ -120,19 +274,33 @@ export function createLiveSorter(videoEl, outputCanvas, direction, frameCount) {
       if (outputCanvas.width  !== w) outputCanvas.width  = w
       if (outputCanvas.height !== h) outputCanvas.height = h
 
-      // Advance progress based on elapsed time.
-      // One sweep = frameCount * 50 ms.
-      const dt = lastTime == null ? 0 : now - lastTime
-      const sweepDuration = currentFrameCount * 50  // ms for 0→1
-      const step = dt / sweepDuration
+      if (!paused) {
+        const dt            = lastTime == null ? 0 : now - lastTime
+        const sweepDuration = currentFrameCount * 50
+        const step          = dt / sweepDuration
 
-      progress += playDir * step
-      if (progress >= 1) { progress = 1; playDir = -1 }
-      if (progress <= 0) { progress = 0; playDir =  1 }
+        progress += playDir * step
+
+        if (step > 0) {
+          if (progress >= 1) {
+            progress = 1
+            if (looping) { playDir = -1 } else { paused = true }
+          }
+          if (progress <= 0) {
+            progress = 0
+            if (looping) { playDir = 1 } else { paused = true }
+          }
+        }
+      }
 
       srcCtx.drawImage(videoEl, 0, 0, w, h)
       const imageData = srcCtx.getImageData(0, 0, w, h)
-      renderLiveFrame(imageData, currentDirection, progress, outputCanvas)
+      renderLiveFrame(imageData, currentHDirection, currentVDirection, currentAlgorithm, progress, outputCanvas)
+
+      if (onTick && now - lastTickTime >= 50) {
+        onTick(progress)
+        lastTickTime = now
+      }
     }
 
     lastTime = now
@@ -142,8 +310,152 @@ export function createLiveSorter(videoEl, outputCanvas, direction, frameCount) {
   requestAnimationFrame(tick)
 
   return {
-    setDirection(d)  { currentDirection  = d },
-    setFrameCount(n) { currentFrameCount = n },
-    stop()           { active = false },
+    setHDirection(d)  { currentHDirection = d },
+    setVDirection(d)  { currentVDirection = d },
+    setAlgorithm(a)   { currentAlgorithm  = a },
+    setFrameCount(n)  { currentFrameCount = n },
+    setPaused(v) {
+      paused = v
+      if (!v) {
+        lastTime = null
+        if (progress <= 0) { playDir = 1 }
+        else if (progress >= 1) { if (looping) { playDir = -1 } else { progress = 0; playDir = 1 } }
+      }
+    },
+    setLoop(v)        { looping = v },
+    setProgress(p)    { progress = Math.max(0, Math.min(1, p)) },
+    isPaused()        { return paused },
+    stop()            { active = false },
+  }
+}
+
+// ── Static image sorter ──────────────────────────────────────────────────────
+
+export function createImageSorter(imageData, outputCanvas, hDirection, vDirection, algorithm, frameCount, onTick) {
+  let active            = true
+  let currentHDirection = hDirection
+  let currentVDirection = vDirection
+  let currentAlgorithm  = algorithm
+  let currentFrameCount = frameCount
+  let looping           = true
+  let preRenderedFrames = null  // ImageBitmap[]
+
+  let progress    = 0
+  let playDir     = 1
+  let lastTime    = null
+  let paused      = false
+  let lastTickTime = 0
+
+  const { width, height } = imageData
+  outputCanvas.width  = width
+  outputCanvas.height = height
+
+  // Pre-sort rows/cols once — lerp-only in the tick loop (fast)
+  let preSortH = null  // { rows, sortedRows }
+  let preSortV = null  // { cols, sortedCols }
+
+  function reSort() {
+    preSortH = currentHDirection
+      ? extractAndSortRows(imageData, currentHDirection, currentAlgorithm)
+      : null
+    // Pure-V only: pre-sort cols. Dual H+V: V sorts per frame (input varies).
+    preSortV = (currentVDirection && !currentHDirection)
+      ? extractAndSortCols(imageData, currentVDirection, currentAlgorithm)
+      : null
+  }
+
+  reSort()
+
+  function renderFrame(p) {
+    const isSortLtD = currentAlgorithm === 'sort-light-to-dark'
+    const ctx = outputCanvas.getContext('2d')
+
+    if (!currentHDirection && !currentVDirection) {
+      ctx.putImageData(imageData, 0, 0)
+      return
+    }
+
+    if (preSortH && !currentVDirection) {
+      const out = new ImageData(width, height)
+      lerpRowsToBuffer(preSortH.rows, preSortH.sortedRows, width, height, isSortLtD, p, out)
+      ctx.putImageData(out, 0, 0)
+      return
+    }
+
+    if (preSortV) {
+      const out = new ImageData(width, height)
+      lerpColsToBuffer(preSortV.cols, preSortV.sortedCols, width, height, isSortLtD, p, out)
+      ctx.putImageData(out, 0, 0)
+      return
+    }
+
+    // Dual H+V: pre-sorted H lerp (fast), V sort+lerp per frame (unavoidable)
+    if (preSortH && currentVDirection) {
+      const hOut = new ImageData(width, height)
+      lerpRowsToBuffer(preSortH.rows, preSortH.sortedRows, width, height, isSortLtD, p, hOut)
+      const vOut = new ImageData(width, height)
+      renderColsToBuffer(hOut, currentVDirection, currentAlgorithm, p, vOut)
+      ctx.putImageData(vOut, 0, 0)
+    }
+  }
+
+  function tick(now) {
+    if (!active) return
+
+    if (!paused) {
+      const dt            = lastTime == null ? 0 : now - lastTime
+      const sweepDuration = currentFrameCount * 50
+      const step          = dt / sweepDuration
+
+      progress += playDir * step
+
+      if (step > 0) {
+        if (progress >= 1) {
+          progress = 1
+          if (looping) { playDir = -1 } else { paused = true; onTick?.(progress) }
+        }
+        if (progress <= 0) {
+          progress = 0
+          if (looping) { playDir = 1 } else { paused = true; onTick?.(progress) }
+        }
+      }
+    }
+
+    if (preRenderedFrames) {
+      const idx = Math.round(progress * (preRenderedFrames.length - 1))
+      outputCanvas.getContext('2d').drawImage(preRenderedFrames[idx], 0, 0)
+    } else {
+      renderFrame(progress)
+    }
+
+    if (onTick && now - lastTickTime >= 50) {
+      onTick(progress)
+      lastTickTime = now
+    }
+
+    lastTime = now
+    requestAnimationFrame(tick)
+  }
+
+  requestAnimationFrame(tick)
+
+  return {
+    setHDirection(d)       { currentHDirection = d; preRenderedFrames = null; reSort() },
+    setVDirection(d)       { currentVDirection = d; preRenderedFrames = null; reSort() },
+    setAlgorithm(a)        { currentAlgorithm  = a; preRenderedFrames = null; reSort() },
+    setFrameCount(n)       { currentFrameCount = n },
+    setPreRendered(frames) { preRenderedFrames = frames },
+    setLoop(v)             { looping = v },
+    setPaused(v) {
+      paused = v
+      if (!v) {
+        lastTime = null
+        if (progress <= 0) { playDir = 1 }
+        else if (progress >= 1) { if (looping) { playDir = -1 } else { progress = 0; playDir = 1 } }
+      }
+    },
+    setProgress(p)         { progress = Math.max(0, Math.min(1, p)) },
+    isPaused()             { return paused },
+    stop()                 { active = false },
   }
 }

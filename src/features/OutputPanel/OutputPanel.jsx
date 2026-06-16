@@ -1,50 +1,116 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Pause, Repeat, Square, Video, X, CircleDot } from 'lucide-react'
-import { ActionIconButton, ActionIconButtonToggle, FileUpload, GhostButton, Slider } from '@6njp/prototype-library'
+import { Pause, Play, Repeat, Square, Video, X, CircleDot } from 'lucide-react'
+import { ActionIconButton, ActionIconButtonToggle, FileUpload, GhostButton, Loader, Modal, Slider } from '@6njp/prototype-library'
 
-import { createLiveSorter } from '@/livePixelSorter.js'
+import { createLiveSorter, createImageSorter } from '@/livePixelSorter.js'
 import { WebcamCapture } from '@/features/WebcamCapture/WebcamCapture.jsx'
 
 import styles from './OutputPanel.module.css'
 
 export function OutputPanel({
-  frames,
-  currentFrame,
-  isPlaying,
-  isLooping,
-  isGenerating,
-  generationProgress,
   image,
-  direction,
+  algorithm,
+  hDirection,
+  vDirection,
   frameCount,
-  onFrameChange,
-  onTogglePlay,
-  onStop,
-  onToggleLoop,
+  preRenderedFrames,
+  isPreRendering,
+  preRenderProgress,
+  liveActive,
   onImage,
+  onRegisterDownload,
+  onRegisterStopFeed,
+  onLiveActive,
 }) {
-  const hasFrames = frames.length > 0
-  const frameUrl = frames[currentFrame]
-
   // ── Live feed state ──────────────────────────────────────────────────────
   const [feedOpen,  setFeedOpen]  = useState(false)
   const [stream,    setStream]    = useState(null)
   const [feedError, setFeedError] = useState(null)
-  const [liveActive, setLiveActive] = useState(false)
 
-  const previewVideoRef = useRef(null)  // camera preview in modal
-  const liveVideoRef    = useRef(null)  // hidden video element driving the sorter
-  const outputCanvasRef = useRef(null)  // canvas showing sorted output
-  const sorterRef       = useRef(null)  // live sorter handle
+  // ── Image animation state ────────────────────────────────────────────────
+  const [imagePaused,  setImagePaused]  = useState(false)
+  const [isLooping,    setIsLooping]    = useState(true)
+  const [liveProgress, setLiveProgress] = useState(0)
 
-  // Keep direction and frameCount in sync with live sorter without restarting it
-  useEffect(() => { sorterRef.current?.setDirection(direction) },   [direction])
-  useEffect(() => { sorterRef.current?.setFrameCount(frameCount) }, [frameCount])
+  const liveVideoRef    = useRef(null)
+  const outputCanvasRef = useRef(null)
+  const sorterRef       = useRef(null)
 
-  // Wire preview video to stream when modal opens
+  // ── Register download fn so SettingsPanel can trigger it ─────────────────
   useEffect(() => {
-    if (previewVideoRef.current && stream) previewVideoRef.current.srcObject = stream
-  }, [stream, feedOpen])
+    onRegisterDownload?.(() => {
+      const canvas = outputCanvasRef.current
+      if (!canvas) return
+      const url = canvas.toDataURL('image/png')
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = 'frame.png'
+      a.click()
+    })
+  }, [onRegisterDownload])
+
+  // ── Register stopFeed fn so SettingsPanel can trigger it ─────────────────
+  useEffect(() => {
+    onRegisterStopFeed?.(stopFeed)
+  }) // intentionally no deps — stopFeed closes over current stream/sorter
+
+  // ── Start/stop image sorter when image or live mode changes ──────────────
+  useEffect(() => {
+    if (!image || liveActive) return
+
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width  = image.data.width
+    srcCanvas.height = image.data.height
+    const ctx = srcCanvas.getContext('2d', { willReadFrequently: true })
+    ctx.drawImage(image.data, 0, 0)
+    const imageData = ctx.getImageData(0, 0, srcCanvas.width, srcCanvas.height)
+
+    setImagePaused(false)
+    setLiveProgress(0)
+
+    sorterRef.current?.stop()
+    sorterRef.current = createImageSorter(
+      imageData,
+      outputCanvasRef.current,
+      hDirection,
+      vDirection,
+      algorithm,
+      frameCount,
+      p => {
+        setLiveProgress(p)
+        if (sorterRef.current?.isPaused()) setImagePaused(true)
+      },
+    )
+
+    return () => { sorterRef.current?.stop(); sorterRef.current = null }
+  }, [image, liveActive]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Keep settings in sync with sorter ───────────────────────────────────
+  useEffect(() => { sorterRef.current?.setHDirection(hDirection)  }, [hDirection])
+  useEffect(() => { sorterRef.current?.setVDirection(vDirection)  }, [vDirection])
+  useEffect(() => { sorterRef.current?.setAlgorithm(algorithm)    }, [algorithm])
+  useEffect(() => { sorterRef.current?.setFrameCount(frameCount)  }, [frameCount])
+
+  // ── Apply pre-rendered frames when available ─────────────────────────────
+  useEffect(() => {
+    sorterRef.current?.setPreRendered(preRenderedFrames ?? null)
+  }, [preRenderedFrames])
+
+  // ── Pause/resume around pre-rendering ───────────────────────────────────
+  useEffect(() => {
+    if (!sorterRef.current) return
+    if (isPreRendering) {
+      sorterRef.current.setPaused(true)
+      setImagePaused(true)
+    } else {
+      sorterRef.current.setPaused(false)
+      setImagePaused(false)
+    }
+  }, [isPreRendering])
+
+  function previewVideoRef(el) {
+    if (el && stream) el.srcObject = stream
+  }
 
   async function openFeed() {
     setFeedError(null)
@@ -66,15 +132,22 @@ export function OutputPanel({
 
   function startFeed() {
     if (!stream) return
-    // Attach stream to hidden video element
     const video = liveVideoRef.current
     video.srcObject = stream
     video.play()
     setFeedOpen(false)
-    setLiveActive(true)
-    // Start sorter after a tick so canvas is mounted
+    onLiveActive(true)
+    setImagePaused(false)
+    setLiveProgress(0)
     setTimeout(() => {
-      sorterRef.current = createLiveSorter(liveVideoRef.current, outputCanvasRef.current, direction, frameCount)
+      sorterRef.current = createLiveSorter(
+        liveVideoRef.current, outputCanvasRef.current,
+        hDirection, vDirection, algorithm, frameCount,
+        p => {
+          setLiveProgress(p)
+          if (sorterRef.current?.isPaused()) setImagePaused(true)
+        },
+      )
     }, 0)
   }
 
@@ -83,7 +156,9 @@ export function OutputPanel({
     sorterRef.current = null
     stream?.getTracks().forEach(t => t.stop())
     setStream(null)
-    setLiveActive(false)
+    onLiveActive(false)
+    setImagePaused(false)
+    setLiveProgress(0)
   }
 
   function handleFile(file) {
@@ -91,8 +166,37 @@ export function OutputPanel({
     createImageBitmap(file).then(data => onImage({ url, data }))
   }
 
+  function togglePause() {
+    const next = !imagePaused
+    setImagePaused(next)
+    sorterRef.current?.setPaused(next)
+  }
+
+  function handleStop() {
+    sorterRef.current?.setProgress(0)
+    sorterRef.current?.setPaused(true)
+    setLiveProgress(0)
+    setImagePaused(true)
+  }
+
+  function toggleLoop() {
+    const next = !isLooping
+    setIsLooping(next)
+    sorterRef.current?.setLoop(next)
+  }
+
+  function handleScrub(value) {
+    const p = value / frameCount
+    sorterRef.current?.setProgress(p)
+    setLiveProgress(p)
+    if (!imagePaused) {
+      sorterRef.current?.setPaused(true)
+      setImagePaused(true)
+    }
+  }
+
   // ── Prompt (no source loaded) ────────────────────────────────────────────
-  if (!image && !liveActive && !isGenerating && !hasFrames) {
+  if (!image && !liveActive) {
     return (
       <div className={styles.component}>
         <div className={styles.promptWrap}>
@@ -115,27 +219,19 @@ export function OutputPanel({
           </div>
         </div>
 
-        {feedOpen && (
-          <div className={styles.overlay}>
-            <div className={styles.dialog}>
-              <div className={styles.dialogHeader}>
-                <span className={styles.dialogTitle}>Live feed preview</span>
-                <button type='button' onClick={closeFeed} className={styles.closeButton}>
-                  <X size={16} />
-                </button>
-              </div>
-              <video autoPlay playsInline muted ref={previewVideoRef} className={styles.previewVideo} />
-              <div className={styles.dialogFooter}>
-                <button type='button' onClick={startFeed} className={styles.startButton}>
-                  <CircleDot size={15} />
-                  <span>Use live feed</span>
-                </button>
-              </div>
-            </div>
+        <Modal isOpen={feedOpen} onClose={closeFeed} title='Live feed preview'>
+          <div className={styles.feedModalContent}>
+            <video autoPlay playsInline muted ref={previewVideoRef} className={styles.previewVideo} />
+            <GhostButton
+              label='Use live feed'
+              icon={CircleDot}
+              color='orange'
+              onClick={startFeed}
+              layoutClassName={styles.startButtonLayout}
+            />
           </div>
-        )}
+        </Modal>
 
-        {/* Hidden video element for the sorter */}
         <video ref={liveVideoRef} muted playsInline className={styles.hiddenVideo} />
       </div>
     )
@@ -143,6 +239,8 @@ export function OutputPanel({
 
   // ── Live feed output ─────────────────────────────────────────────────────
   if (liveActive) {
+    const liveFrameNum = Math.round(liveProgress * frameCount)
+
     return (
       <div className={styles.component}>
         <div className={styles.viewport}>
@@ -150,80 +248,96 @@ export function OutputPanel({
         </div>
         <div className={styles.controls}>
           <div className={styles.toolbar}>
-            <GhostButton
-              label='Stop live feed'
-              icon={X}
-              color='orange'
-              onClick={stopFeed}
-              layoutClassName={styles.stopLiveLayout}
+            <ActionIconButtonToggle
+              icon={Repeat}
+              isActive={isLooping}
+              onChange={toggleLoop}
+              title='Loop'
+              style='transparent'
             />
+            <ActionIconButton
+              icon={Square}
+              onClick={handleStop}
+              title='Stop'
+              style='transparent'
+            />
+            <ActionIconButton
+              icon={imagePaused ? Play : Pause}
+              onClick={togglePause}
+              title={imagePaused ? 'Play' : 'Pause'}
+              style='transparent'
+            />
+            <span className={styles.frameCounter}>
+              {liveFrameNum + 1} / {frameCount + 1}
+            </span>
           </div>
+          <Slider
+            value={liveFrameNum}
+            onChange={handleScrub}
+            min={0}
+            max={frameCount}
+            step={1}
+            layoutClassName={styles.seekerLayout}
+          />
         </div>
-        {/* Hidden video for the sorter */}
         <video ref={liveVideoRef} muted playsInline className={styles.hiddenVideo} />
       </div>
     )
   }
 
-  // ── Static image / frames output ─────────────────────────────────────────
+  // ── Image animation output ───────────────────────────────────────────────
+  const currentFrameNum = Math.round(liveProgress * frameCount)
+  const prerenderPct    = Math.round((preRenderProgress ?? 0) * 100)
+
   return (
     <div className={styles.component}>
       <div className={styles.viewport}>
-        {frameUrl
-          ? <img src={frameUrl} alt={`Frame ${currentFrame + 1}`} className={styles.frame} />
-          : <img src={image.url} alt='Input' className={styles.frame} />
-        }
-
-        {isGenerating && (
-          <div className={styles.progressOverlay}>
-            <div className={styles.progressBar}>
-              <div style={{ width: `${generationProgress}%` }} className={styles.progressFill} />
+        <canvas ref={outputCanvasRef} className={styles.frame} />
+        {isPreRendering && (
+          <div className={styles.prerenderOverlay}>
+            <Loader size={28} />
+            <span className={styles.prerenderLabel}>Pre-rendering…</span>
+            <div className={styles.prerenderBar}>
+              <div style={{ width: `${prerenderPct}%` }} className={styles.prerenderBarFill} />
             </div>
-            <span className={styles.progressLabel}>{generationProgress}%</span>
+            <span style={{ opacity: 0.55 }} className={styles.prerenderLabel}>{prerenderPct}%</span>
           </div>
         )}
       </div>
-
       <div className={styles.controls}>
         <div className={styles.toolbar}>
           <ActionIconButtonToggle
             icon={Repeat}
             isActive={isLooping}
-            onChange={onToggleLoop}
+            onChange={toggleLoop}
             title='Loop'
             style='transparent'
           />
           <ActionIconButton
             icon={Square}
-            onClick={onStop}
+            onClick={handleStop}
             title='Stop'
             style='transparent'
-            disabled={!hasFrames}
           />
           <ActionIconButton
-            icon={isPlaying ? Pause : Play}
-            onClick={onTogglePlay}
-            title={isPlaying ? 'Pause' : 'Play'}
+            icon={imagePaused ? Play : Pause}
+            onClick={togglePause}
+            title={imagePaused ? 'Play' : 'Pause'}
             style='transparent'
-            disabled={!hasFrames}
+            disabled={isPreRendering}
           />
-          {hasFrames && (
-            <span className={styles.frameCounter}>
-              {currentFrame + 1} / {frames.length}
-            </span>
-          )}
+          <span className={styles.frameCounter}>
+            {currentFrameNum + 1} / {frameCount + 1}
+          </span>
         </div>
-
-        {hasFrames && (
-          <Slider
-            value={currentFrame}
-            onChange={onFrameChange}
-            min={0}
-            max={frames.length - 1}
-            step={1}
-            layoutClassName={styles.seekerLayout}
-          />
-        )}
+        <Slider
+          value={currentFrameNum}
+          onChange={handleScrub}
+          min={0}
+          max={frameCount}
+          step={1}
+          layoutClassName={styles.seekerLayout}
+        />
       </div>
     </div>
   )
