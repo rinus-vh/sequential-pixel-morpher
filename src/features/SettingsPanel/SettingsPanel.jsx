@@ -1,4 +1,4 @@
-import { Dropdown, GhostButton, LabelUppercaseSm, Slider } from '@6njp/prototype-library'
+import { CheckboxBarRadio, Dropdown, GhostButton, LabelUppercaseSm, Slider } from '@6njp/prototype-library'
 import { Download, Image, Layers, Trash2, Video } from 'lucide-react'
 
 import styles from './SettingsPanel.module.css'
@@ -18,23 +18,6 @@ const V_OPTIONS = [
   { value: 'bottom-to-top', label: '↑ Bottom to Top' },
 ]
 
-// Deselectable toggle group: clicking the active option deselects it (value → null)
-function ToggleGroup({ options, value, onChange }) {
-  return (
-    <div className={styles.toggleGroup}>
-      {options.map(opt => (
-        <button
-          key={opt.value}
-          type='button'
-          className={`${styles.toggleOption} ${value === opt.value ? styles.toggleOptionActive : ''}`}
-          onClick={() => onChange(value === opt.value ? null : opt.value)}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export function SettingsPanel({
   algorithm,
@@ -68,12 +51,12 @@ export function SettingsPanel({
 
       <section className={styles.section}>
         <LabelUppercaseSm layoutClassName={styles.sectionLabel}>Horizontal direction</LabelUppercaseSm>
-        <ToggleGroup options={H_OPTIONS} value={hDirection} onChange={onHDirection} />
+        <CheckboxBarRadio options={H_OPTIONS} value={hDirection} onChange={v => onHDirection(v === hDirection ? null : v)} />
       </section>
 
       <section className={styles.section}>
         <LabelUppercaseSm layoutClassName={styles.sectionLabel}>Vertical direction</LabelUppercaseSm>
-        <ToggleGroup options={V_OPTIONS} value={vDirection} onChange={onVDirection} />
+        <CheckboxBarRadio options={V_OPTIONS} value={vDirection} onChange={v => onVDirection(v === vDirection ? null : v)} />
       </section>
 
       <section className={styles.section}>
@@ -119,7 +102,7 @@ export function SettingsPanel({
           <GhostButton
             label='Stop live feed'
             icon={Video}
-            color='orange'
+            color='dynamic'
             onClick={onStopFeed}
             layoutClassName={styles.actionButton}
           />
@@ -128,7 +111,7 @@ export function SettingsPanel({
           <GhostButton
             label='Discard image'
             icon={Trash2}
-            color='orange'
+            color='dynamic'
             onClick={onDiscard}
             layoutClassName={styles.actionButton}
           />

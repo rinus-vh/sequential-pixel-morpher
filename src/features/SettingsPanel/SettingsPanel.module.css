@@ -27,36 +27,3 @@
 .actionButton {
   width: 100%;
 }
-
-/* Deselectable toggle group — visually matches the library's CheckboxBar style */
-.toggleGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.toggleOption {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-8);
-  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms;
-}
-
-.toggleOption:hover {
-  background: color-mix(in srgb, currentColor 6%, transparent);
-}
-
-.toggleOptionActive {
-  background: color-mix(in srgb, var(--color-accent, #e85d04) 12%, transparent);
-  border-color: var(--color-accent, #e85d04);
-  color: var(--color-accent, #e85d04);
-}

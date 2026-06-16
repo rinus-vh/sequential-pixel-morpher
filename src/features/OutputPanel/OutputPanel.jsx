@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pause, Play, Repeat, Square, Video, X, CircleDot } from 'lucide-react'
-import { ActionIconButton, ActionIconButtonToggle, FileUpload, GhostButton, Loader, Modal, Slider } from '@6njp/prototype-library'
+import { ActionIconButton, ActionIconButtonToggle, FileUpload, GhostButton, Loader, Modal } from '@6njp/prototype-library'
 
 import { createLiveSorter, createImageSorter } from '@/livePixelSorter.js'
 import { WebcamCapture } from '@/features/WebcamCapture/WebcamCapture.jsx'
@@ -35,6 +35,8 @@ export function OutputPanel({
   const liveVideoRef    = useRef(null)
   const outputCanvasRef = useRef(null)
   const sorterRef       = useRef(null)
+  const scrubTrackRef   = useRef(null)
+  const isDraggingRef   = useRef(false)
 
   // ── Register download fn so SettingsPanel can trigger it ─────────────────
   useEffect(() => {
@@ -186,7 +188,8 @@ export function OutputPanel({
   }
 
   function handleScrub(value) {
-    const p = value / frameCount
+    const steps = Math.max(1, frameCount - 1)
+    const p = value / steps
     sorterRef.current?.setProgress(p)
     setLiveProgress(p)
     if (!imagePaused) {
@@ -194,6 +197,43 @@ export function OutputPanel({
       setImagePaused(true)
     }
   }
+
+  function scrubFromEvent(e) {
+    const rect = scrubTrackRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+    handleScrub(Math.round((x / rect.width) * Math.max(1, frameCount - 1)))
+  }
+
+  function onScrubPointerDown(e) {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    isDraggingRef.current = true
+    scrubFromEvent(e)
+  }
+
+  function onScrubPointerMove(e) {
+    if (!isDraggingRef.current) return
+    scrubFromEvent(e)
+  }
+
+  function onScrubPointerUp(e) {
+    isDraggingRef.current = false
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  const scrubBar = (
+    <div
+      className={styles.scrubBar}
+      onPointerDown={onScrubPointerDown}
+      onPointerMove={onScrubPointerMove}
+      onPointerUp={onScrubPointerUp}
+    >
+      <div ref={scrubTrackRef} className={styles.scrubTrack}>
+        <div className={styles.scrubFill} style={{ width: `${liveProgress * 100}%` }} />
+        <div className={styles.scrubThumb} style={{ left: `${liveProgress * 100}%` }} />
+      </div>
+    </div>
+  )
 
   // ── Prompt (no source loaded) ────────────────────────────────────────────
   if (!image && !liveActive) {
@@ -225,7 +265,7 @@ export function OutputPanel({
             <GhostButton
               label='Use live feed'
               icon={CircleDot}
-              color='orange'
+              color='dynamic'
               onClick={startFeed}
               layoutClassName={styles.startButtonLayout}
             />
@@ -239,7 +279,7 @@ export function OutputPanel({
 
   // ── Live feed output ─────────────────────────────────────────────────────
   if (liveActive) {
-    const liveFrameNum = Math.round(liveProgress * frameCount)
+    const liveFrameNum = Math.round(liveProgress * Math.max(1, frameCount - 1))
 
     return (
       <div className={styles.component}>
@@ -247,6 +287,7 @@ export function OutputPanel({
           <canvas ref={outputCanvasRef} className={styles.frame} />
         </div>
         <div className={styles.controls}>
+          {scrubBar}
           <div className={styles.toolbar}>
             <ActionIconButtonToggle
               icon={Repeat}
@@ -268,17 +309,9 @@ export function OutputPanel({
               style='transparent'
             />
             <span className={styles.frameCounter}>
-              {liveFrameNum + 1} / {frameCount + 1}
+              {liveFrameNum + 1} / {frameCount}
             </span>
           </div>
-          <Slider
-            value={liveFrameNum}
-            onChange={handleScrub}
-            min={0}
-            max={frameCount}
-            step={1}
-            layoutClassName={styles.seekerLayout}
-          />
         </div>
         <video ref={liveVideoRef} muted playsInline className={styles.hiddenVideo} />
       </div>
@@ -286,7 +319,7 @@ export function OutputPanel({
   }
 
   // ── Image animation output ───────────────────────────────────────────────
-  const currentFrameNum = Math.round(liveProgress * frameCount)
+  const currentFrameNum = Math.round(liveProgress * Math.max(1, frameCount - 1))
   const prerenderPct    = Math.round((preRenderProgress ?? 0) * 100)
 
   return (
@@ -305,6 +338,7 @@ export function OutputPanel({
         )}
       </div>
       <div className={styles.controls}>
+        {scrubBar}
         <div className={styles.toolbar}>
           <ActionIconButtonToggle
             icon={Repeat}
@@ -327,17 +361,9 @@ export function OutputPanel({
             disabled={isPreRendering}
           />
           <span className={styles.frameCounter}>
-            {currentFrameNum + 1} / {frameCount + 1}
+            {currentFrameNum + 1} / {frameCount}
           </span>
         </div>
-        <Slider
-          value={currentFrameNum}
-          onChange={handleScrub}
-          min={0}
-          max={frameCount}
-          step={1}
-          layoutClassName={styles.seekerLayout}
-        />
       </div>
     </div>
   )
