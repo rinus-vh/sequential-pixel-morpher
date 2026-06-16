@@ -99,7 +99,7 @@ export function SettingsPanel({
             layoutClassName={styles.actionButton}
           />
         )}
-        {image && (
+        {(image || liveActive) && (
           <GhostButton
             label='Download current frame'
             icon={Image}
