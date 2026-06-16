@@ -2,8 +2,44 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 0;
+  position: relative;
 }
+
+/* ── Prompt (no source) — mirrors char-field ViewportContent ─────────────── */
+
+.promptWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-16);
+  min-height: 0;
+}
+
+.prompt {
+  flex: 1;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-8);
+  align-items: stretch;
+}
+
+.uploadLayout {
+  width: 100%;
+}
+
+.liveFeedButtonLayout {
+  width: 100%;
+}
+
+.error {
+  color: var(--color-orange-500);
+  font-size: var(--font-size-12);
+  text-align: center;
+}
+
+/* ── Viewport (frames / live canvas) ────────────────────────────────────── */
 
 .viewport {
   flex: 1;
@@ -18,28 +54,6 @@
   height: 100%;
   object-fit: contain;
   display: block;
-}
-
-.empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.emptyText {
-  font-size: 13px;
-  opacity: 0.35;
-}
-
-.uploadZone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  height: 100%;
-  padding: 24px;
 }
 
 .progressOverlay {
@@ -73,7 +87,7 @@
   text-align: center;
 }
 
-/* ── Controls bar — styled like SettingsKeyframeTimeline toolbar ─────────── */
+/* ── Controls bar ────────────────────────────────────────────────────────── */
 
 .controls {
   flex-shrink: 0;
@@ -96,4 +110,105 @@
 
 .seekerLayout {
   padding: 0 var(--size-12) var(--size-8);
+}
+
+.stopLiveLayout {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Live feed modal ─────────────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, black 60%, transparent);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-16);
+  background: var(--background-color, #1a1a1a);
+  border: 1px solid color-mix(in srgb, var(--color) 15%, transparent);
+  border-radius: var(--radius-8);
+  padding: var(--size-20);
+  width: min(90vw, 560px);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dialogTitle {
+  font-size: var(--font-size-14);
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-4);
+  border: none;
+  background: none;
+  color: var(--color);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity var(--duration-100);
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.previewVideo {
+  width: 100%;
+  border-radius: var(--radius-4);
+  background: color-mix(in srgb, var(--color) 5%, transparent);
+  display: block;
+}
+
+.dialogFooter {
+  display: flex;
+  justify-content: center;
+}
+
+.startButton {
+  display: flex;
+  align-items: center;
+  gap: var(--size-8);
+  padding: var(--size-8) var(--size-24);
+  border-radius: var(--radius-4);
+  border: none;
+  background: var(--color);
+  color: var(--background-color, #1a1a1a);
+  font-size: var(--font-size-13);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--duration-150);
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+/* ── Hidden sorter video element ─────────────────────────────────────────── */
+
+.hiddenVideo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }

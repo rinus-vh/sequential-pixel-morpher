@@ -148,7 +148,7 @@ export default function App() {
             }}
             onStop={handleStop}
             onToggleLoop={() => setIsLooping(l => !l)}
-            {...{ frames, currentFrame, isPlaying, isLooping, isGenerating, generationProgress, image }}
+            {...{ frames, currentFrame, isPlaying, isLooping, isGenerating, generationProgress, image, direction, frameCount }}
           />
         </Panel>
       </Grid>
