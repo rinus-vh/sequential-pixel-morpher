@@ -77,7 +77,7 @@
 .progressFill {
   height: 100%;
   border-radius: 2px;
-  background: var(--interaction-color, var(--color));
+  background: var(--dynamic-color, var(--color));
   transition: width 80ms linear;
 }
 
@@ -118,7 +118,7 @@
 
 .prerenderBarFill {
   height: 100%;
-  background: var(--interaction-color, #60a5fa);
+  background: var(--dynamic-color, #60a5fa);
   border-radius: var(--radius-circle);
   transition: width 0.1s linear;
 }
@@ -155,18 +155,18 @@
   touch-action: none;
 
   &:hover {
-    --scrub-color: var(--interaction-color-hover);
+    --scrub-color: var(--dynamic-color-hover);
     --scrub-thumb-scale: 1;
     --scrub-thumb-bg: var(--background-color);
-    --scrub-thumb-border-color: var(--interaction-color-hover);
+    --scrub-thumb-border-color: var(--dynamic-color-hover);
   }
 
   &:active {
-    --scrub-color: var(--interaction-color-hover);
+    --scrub-color: var(--dynamic-color-hover);
     --scrub-thumb-scale: 1;
     --scrub-thumb-bg: var(--background-color);
-    --scrub-thumb-border-color: var(--interaction-color-hover);
-    --scrub-thumb-shadow: 0 0 0 4px color-mix(in srgb, var(--interaction-color) 30%, transparent);
+    --scrub-thumb-border-color: var(--dynamic-color-hover);
+    --scrub-thumb-shadow: 0 0 0 4px color-mix(in srgb, var(--dynamic-color) 30%, transparent);
   }
 }
 
@@ -183,7 +183,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: var(--scrub-color, var(--interaction-color));
+  background: var(--scrub-color, var(--dynamic-color));
   border-radius: var(--radius-circle);
   pointer-events: none;
 }
@@ -194,7 +194,7 @@
   width: var(--size-16);
   height: var(--size-16);
   border-radius: 50%;
-  background: var(--scrub-thumb-bg, var(--interaction-color));
+  background: var(--scrub-thumb-bg, var(--dynamic-color));
   border: 2px solid var(--scrub-thumb-border-color, transparent);
   box-sizing: border-box;
   transform: translate(-50%, -50%) scale(var(--scrub-thumb-scale, 0.5));
