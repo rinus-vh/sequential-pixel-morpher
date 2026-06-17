@@ -13,7 +13,7 @@ export default function App() {
   const [isDark, setIsDark] = React.useState(true)
 
   const [image,      setImage]      = React.useState(null)
-  const [algorithm,  setAlgorithm]  = React.useState('swap')
+  const [algorithm,  setAlgorithm]  = React.useState('sort-brightness')
   const [hDirection, setHDirection] = React.useState('left-to-right')
   const [vDirection, setVDirection] = React.useState(null)
   const [frameCount, setFrameCount] = React.useState(60)

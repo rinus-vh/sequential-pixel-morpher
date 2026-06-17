@@ -4,8 +4,10 @@ import { Download, Image, Layers, Trash2, Video } from 'lucide-react'
 import styles from './SettingsPanel.module.css'
 
 const ALGORITHM_OPTIONS = [
-  { value: 'swap',               label: 'Swap light and dark pixels' },
-  { value: 'sort-light-to-dark', label: 'Sort from light to dark'   },
+  { value: 'sort-brightness',  label: 'Sort based on brightness'  },
+  { value: 'sort-hue',         label: 'Sort based on hue'         },
+  { value: 'sort-saturation',  label: 'Sort based on saturation'  },
+  { value: 'swap',             label: 'Swap light and dark pixels' },
 ]
 
 const H_OPTIONS = [

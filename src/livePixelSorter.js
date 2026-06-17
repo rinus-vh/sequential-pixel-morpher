@@ -1,13 +1,15 @@
 /**
  * Live and static-image pixel sorters.
  *
- * Two algorithms, two different rendering formulas:
+ * Algorithms:
+ *   'sort-brightness' — sort by perceived brightness (luma). Correct lerp formula.
+ *   'sort-hue'        — sort by HSL hue (0–360°). Correct lerp formula.
+ *   'sort-saturation' — sort by HSL saturation (0–1). Correct lerp formula.
+ *   'swap'            — original swap formula: pixel at position x moves toward
+ *                       sorted[x].originalX (interleaving sweep visual).
  *
- * 'swap'               — original formula: pixel at position x moves toward
- *   sorted[x].originalX (interleaving sweep visual).
- * 'sort-light-to-dark' — corrected formula: rank-r pixel moves FROM its
- *   original position TO sorted position r (mathematically correct for
- *   all permutations including descending sort).
+ * For all non-'swap' algorithms the rank-r pixel moves FROM its original
+ * position TO sorted position r (mathematically correct for all permutations).
  *
  * Dual direction: H pass runs first, V pass runs on its output.
  */
@@ -16,8 +18,62 @@ function calcBrightness(r, g, b) {
   return 0.299 * r + 0.587 * g + 0.114 * b
 }
 
-function sortPixels(pixels, ascending) {
-  return [...pixels].sort((a, b) => ascending ? a.brightness - b.brightness : b.brightness - a.brightness)
+function calcHue(r, g, b) {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const d   = max - min
+  if (d === 0) return 0
+  let h
+  if      (max === r) h = ((g - b) / d) % 6
+  else if (max === g) h = (b - r) / d + 2
+  else                h = (r - g) / d + 4
+  h = h * 60
+  return h < 0 ? h + 360 : h
+}
+
+function calcSaturation(r, g, b) {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const d   = max - min
+  if (d === 0) return 0
+  const l = (max + min) / 2
+  return d / (1 - Math.abs(2 * l - 1))
+}
+
+/** Returns the sort key value for a pixel given the algorithm. */
+function sortKey(px, algorithm) {
+  if (algorithm === 'sort-hue')        return px.hue
+  if (algorithm === 'sort-saturation') return px.saturation
+  return px.brightness  // sort-brightness + swap both use brightness
+}
+
+function sortPixels(pixels, ascending, algorithm) {
+  return [...pixels].sort((a, b) => {
+    const ka = sortKey(a, algorithm)
+    const kb = sortKey(b, algorithm)
+    return ascending ? ka - kb : kb - ka
+  })
+}
+
+/** Whether this algorithm uses the correct rank-based lerp (vs the swap formula). */
+function useRankLerp(algorithm) {
+  return algorithm !== 'swap'
+}
+
+/** Ascending direction for a horizontal pass given the algorithm. */
+function hAscending(algorithm, direction) {
+  return useRankLerp(algorithm)
+    ? direction === 'right-to-left'
+    : direction === 'left-to-right'
+}
+
+/** Ascending direction for a vertical pass given the algorithm. */
+function vAscending(algorithm, direction) {
+  return useRankLerp(algorithm)
+    ? direction === 'bottom-to-top'
+    : direction === 'top-to-bottom'
 }
 
 // ── Inner lerp loops ─────────────────────────────────────────────────────────
@@ -89,40 +145,42 @@ function lerpColsToBuffer(cols, sortedCols, width, height, isSortLtD, progress, 
 
 function extractAndSortRows(imageData, hDirection, algorithm) {
   const { data, width, height } = imageData
-  const ascending = algorithm === 'sort-light-to-dark'
-    ? hDirection === 'right-to-left'
-    : hDirection === 'left-to-right'
+  const ascending = hAscending(algorithm, hDirection)
   const rows = [], sortedRows = []
   for (let y = 0; y < height; y++) {
     const row = []
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4
-      row.push({ r: data[i], g: data[i+1], b: data[i+2], a: data[i+3],
-                 brightness: calcBrightness(data[i], data[i+1], data[i+2]),
-                 originalX: x })
+      const r = data[i], g = data[i+1], b = data[i+2]
+      row.push({ r, g, b, a: data[i+3],
+        brightness: calcBrightness(r, g, b),
+        hue: calcHue(r, g, b),
+        saturation: calcSaturation(r, g, b),
+        originalX: x })
     }
     rows.push(row)
-    sortedRows.push(sortPixels(row, ascending))
+    sortedRows.push(sortPixels(row, ascending, algorithm))
   }
   return { rows, sortedRows }
 }
 
 function extractAndSortCols(imageData, vDirection, algorithm) {
   const { data, width, height } = imageData
-  const ascending = algorithm === 'sort-light-to-dark'
-    ? vDirection === 'bottom-to-top'
-    : vDirection === 'top-to-bottom'
+  const ascending = vAscending(algorithm, vDirection)
   const cols = [], sortedCols = []
   for (let x = 0; x < width; x++) {
     const col = []
     for (let y = 0; y < height; y++) {
       const i = (y * width + x) * 4
-      col.push({ r: data[i], g: data[i+1], b: data[i+2], a: data[i+3],
-                 brightness: calcBrightness(data[i], data[i+1], data[i+2]),
-                 originalY: y })
+      const r = data[i], g = data[i+1], b = data[i+2]
+      col.push({ r, g, b, a: data[i+3],
+        brightness: calcBrightness(r, g, b),
+        hue: calcHue(r, g, b),
+        saturation: calcSaturation(r, g, b),
+        originalY: y })
     }
     cols.push(col)
-    sortedCols.push(sortPixels(col, ascending))
+    sortedCols.push(sortPixels(col, ascending, algorithm))
   }
   return { cols, sortedCols }
 }
@@ -130,18 +188,15 @@ function extractAndSortCols(imageData, vDirection, algorithm) {
 // ── Per-frame pass functions (sorting happens inside — for live use) ──────────
 
 function renderRowsToBuffer(srcData, direction, algorithm, progress, dstData) {
-  const { data, width, height } = srcData
-  const ascending = algorithm === 'sort-light-to-dark'
-    ? direction === 'right-to-left'
-    : direction === 'left-to-right'
+  const { width, height } = srcData
   const { rows, sortedRows } = extractAndSortRows(srcData, direction, algorithm)
-  lerpRowsToBuffer(rows, sortedRows, width, height, algorithm === 'sort-light-to-dark', progress, dstData)
+  lerpRowsToBuffer(rows, sortedRows, width, height, useRankLerp(algorithm), progress, dstData)
 }
 
 function renderColsToBuffer(srcData, direction, algorithm, progress, dstData) {
-  const { data, width, height } = srcData
+  const { width, height } = srcData
   const { cols, sortedCols } = extractAndSortCols(srcData, direction, algorithm)
-  lerpColsToBuffer(cols, sortedCols, width, height, algorithm === 'sort-light-to-dark', progress, dstData)
+  lerpColsToBuffer(cols, sortedCols, width, height, useRankLerp(algorithm), progress, dstData)
 }
 
 // ── Main frame renderer (live, re-sorts every frame) ─────────────────────────
@@ -185,7 +240,7 @@ export { renderLiveFrame }
  */
 export async function preRenderAllFrames(imageData, hDirection, vDirection, algorithm, frameCount, onProgress) {
   const { width, height } = imageData
-  const isSortLtD = algorithm === 'sort-light-to-dark'
+  const isSortLtD = useRankLerp(algorithm)
 
   // Sort rows once if needed
   let hData = null
