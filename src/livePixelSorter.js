@@ -57,21 +57,21 @@ function sortPixels(pixels, ascending, algorithm) {
   })
 }
 
-/** Whether this algorithm uses the correct rank-based lerp (vs the swap formula). */
-function useRankLerp(algorithm) {
+/** Returns true when this algorithm uses the correct rank-based lerp (vs the swap formula). */
+function rankLerp(algorithm) {
   return algorithm !== 'swap'
 }
 
 /** Ascending direction for a horizontal pass given the algorithm. */
 function hAscending(algorithm, direction) {
-  return useRankLerp(algorithm)
+  return rankLerp(algorithm)
     ? direction === 'right-to-left'
     : direction === 'left-to-right'
 }
 
 /** Ascending direction for a vertical pass given the algorithm. */
 function vAscending(algorithm, direction) {
-  return useRankLerp(algorithm)
+  return rankLerp(algorithm)
     ? direction === 'bottom-to-top'
     : direction === 'top-to-bottom'
 }
@@ -190,13 +190,13 @@ function extractAndSortCols(imageData, vDirection, algorithm) {
 function renderRowsToBuffer(srcData, direction, algorithm, progress, dstData) {
   const { width, height } = srcData
   const { rows, sortedRows } = extractAndSortRows(srcData, direction, algorithm)
-  lerpRowsToBuffer(rows, sortedRows, width, height, useRankLerp(algorithm), progress, dstData)
+  lerpRowsToBuffer(rows, sortedRows, width, height, rankLerp(algorithm), progress, dstData)
 }
 
 function renderColsToBuffer(srcData, direction, algorithm, progress, dstData) {
   const { width, height } = srcData
   const { cols, sortedCols } = extractAndSortCols(srcData, direction, algorithm)
-  lerpColsToBuffer(cols, sortedCols, width, height, useRankLerp(algorithm), progress, dstData)
+  lerpColsToBuffer(cols, sortedCols, width, height, rankLerp(algorithm), progress, dstData)
 }
 
 // ── Main frame renderer (live, re-sorts every frame) ─────────────────────────
@@ -240,7 +240,7 @@ export { renderLiveFrame }
  */
 export async function preRenderAllFrames(imageData, hDirection, vDirection, algorithm, frameCount, onProgress) {
   const { width, height } = imageData
-  const isSortLtD = useRankLerp(algorithm)
+  const isSortLtD = rankLerp(algorithm)
 
   // Sort rows once if needed
   let hData = null
@@ -330,7 +330,7 @@ export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, 
       if (outputCanvas.height !== h) outputCanvas.height = h
 
       if (!paused) {
-        const dt            = lastTime == null ? 0 : now - lastTime
+        const dt            = lastTime === null ? 0 : now - lastTime
         const sweepDuration = currentFrameCount * 50
         const step          = dt / sweepDuration
 
@@ -458,7 +458,7 @@ export function createImageSorter(imageData, outputCanvas, hDirection, vDirectio
     if (!active) return
 
     if (!paused) {
-      const dt            = lastTime == null ? 0 : now - lastTime
+      const dt            = lastTime === null ? 0 : now - lastTime
       const sweepDuration = currentFrameCount * 50
       const step          = dt / sweepDuration
 
