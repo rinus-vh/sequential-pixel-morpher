@@ -1,4 +1,4 @@
-import { CheckboxBarRadio, Dropdown, GhostButton, LabelUppercaseSm, Slider } from '@6njp/prototype-library'
+import { Checkbox, CheckboxBarRadio, ColorInput, Dropdown, GhostButton, LabelUppercaseSm, PanelContainerDivider, Slider } from '@6njp/prototype-library'
 import { Download, Image, Layers, Trash2, Video } from 'lucide-react'
 
 import styles from './SettingsPanel.module.css'
@@ -30,6 +30,10 @@ export function SettingsPanel({
   liveActive,
   needsPreRender,
   isPreRendering,
+  bwEnabled,
+  overlayEnabled,
+  overlayColor,
+  bgColor,
   onAlgorithm,
   onHDirection,
   onVDirection,
@@ -39,6 +43,10 @@ export function SettingsPanel({
   onPreRender,
   onDiscard,
   onStopFeed,
+  onBwEnabled,
+  onOverlayEnabled,
+  onOverlayColor,
+  onBgColor,
 }) {
   return (
     <div className={styles.component}>
@@ -72,6 +80,39 @@ export function SettingsPanel({
           step={5}
         />
       </section>
+
+      <PanelContainerDivider />
+
+      <section className={styles.section}>
+        <LabelUppercaseSm layoutClassName={styles.sectionLabel}>Post Effects</LabelUppercaseSm>
+        <Checkbox
+          label='Black & white'
+          checked={bwEnabled}
+          onChange={onBwEnabled}
+        />
+        <div className={styles.inlineRow}>
+          <Checkbox
+            label='Color overlay'
+            checked={overlayEnabled}
+            onChange={onOverlayEnabled}
+          />
+          <ColorInput
+            value={overlayColor}
+            onChange={onOverlayColor}
+            disabled={!overlayEnabled}
+          />
+        </div>
+        <div className={styles.inlineRow}>
+          <span className={styles.inlineLabel}>Background color</span>
+          <ColorInput
+            value={bgColor}
+            onChange={onBgColor}
+            adjustOpacity
+          />
+        </div>
+      </section>
+
+      <PanelContainerDivider />
 
       <div className={styles.actions}>
         {image && needsPreRender && (

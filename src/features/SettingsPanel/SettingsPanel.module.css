@@ -17,6 +17,18 @@
   opacity: 0.5;
 }
 
+.inlineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-8);
+}
+
+.inlineLabel {
+  font-size: 0.8125rem;
+  opacity: 0.7;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

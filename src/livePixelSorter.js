@@ -298,6 +298,44 @@ export async function preRenderAllFrames(imageData, hDirection, vDirection, algo
   return bitmaps
 }
 
+// ── Post-effect compositor ───────────────────────────────────────────────────
+
+function parseHex(hex) {
+  const h = (hex.startsWith('#') ? hex.slice(1) : hex).padEnd(6, '0')
+  return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0]
+}
+
+/**
+ * Applies B&W and/or colour-overlay effects directly onto the canvas pixels.
+ * Both effects use manual pixel iteration so that alpha-0 pixels are NEVER
+ * touched — canvas globalCompositeOperation 'multiply' bleeds into transparent
+ * pixels, which is why we avoid it here.
+ */
+function applyPostEffects(ctx, width, height, effects) {
+  if (!effects.bwEnabled && !effects.overlayEnabled) return
+
+  const imgData = ctx.getImageData(0, 0, width, height)
+  const d = imgData.data
+  const [or, og, ob] = effects.overlayEnabled && effects.overlayColor
+    ? parseHex(effects.overlayColor)
+    : [255, 255, 255]
+
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue  // skip fully transparent pixels
+    let r = d[i], g = d[i + 1], b = d[i + 2]
+    if (effects.bwEnabled) {
+      r = g = b = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+    }
+    if (effects.overlayEnabled) {
+      r = Math.round(r * or / 255)
+      g = Math.round(g * og / 255)
+      b = Math.round(b * ob / 255)
+    }
+    d[i] = r; d[i + 1] = g; d[i + 2] = b
+  }
+  ctx.putImageData(imgData, 0, 0)
+}
+
 // ── Live feed sorter (webcam) ────────────────────────────────────────────────
 
 export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, algorithm, frameCount, onTick) {
@@ -308,6 +346,7 @@ export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, 
   let currentFrameCount = frameCount
   let looping           = true
   let paused            = false
+  let effects           = { bwEnabled: false, overlayEnabled: false, overlayColor: '#ff6600' }
 
   let progress    = 0
   let playDir     = 1
@@ -351,6 +390,7 @@ export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, 
       srcCtx.drawImage(videoEl, 0, 0, w, h)
       const imageData = srcCtx.getImageData(0, 0, w, h)
       renderLiveFrame(imageData, currentHDirection, currentVDirection, currentAlgorithm, progress, outputCanvas)
+      applyPostEffects(outputCanvas.getContext('2d'), w, h, effects)
 
       if (onTick && now - lastTickTime >= 50) {
         onTick(progress)
@@ -365,10 +405,11 @@ export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, 
   requestAnimationFrame(tick)
 
   return {
-    setHDirection(d)  { currentHDirection = d },
-    setVDirection(d)  { currentVDirection = d },
-    setAlgorithm(a)   { currentAlgorithm  = a },
-    setFrameCount(n)  { currentFrameCount = n },
+    setHDirection(d)      { currentHDirection = d },
+    setVDirection(d)      { currentVDirection = d },
+    setAlgorithm(a)       { currentAlgorithm  = a },
+    setFrameCount(n)      { currentFrameCount = n },
+    setPostEffects(e)     { effects = e },
     setPaused(v) {
       paused = v
       if (!v) {
@@ -377,10 +418,10 @@ export function createLiveSorter(videoEl, outputCanvas, hDirection, vDirection, 
         else if (progress >= 1) { if (looping) { playDir = -1 } else { progress = 0; playDir = 1 } }
       }
     },
-    setLoop(v)        { looping = v },
-    setProgress(p)    { progress = Math.max(0, Math.min(1, p)) },
-    isPaused()        { return paused },
-    stop()            { active = false },
+    setLoop(v)            { looping = v },
+    setProgress(p)        { progress = Math.max(0, Math.min(1, p)) },
+    isPaused()            { return paused },
+    stop()                { active = false },
   }
 }
 
@@ -394,6 +435,7 @@ export function createImageSorter(imageData, outputCanvas, hDirection, vDirectio
   let currentFrameCount = frameCount
   let looping           = true
   let preRenderedFrames = null  // ImageBitmap[]
+  let effects           = { bwEnabled: false, overlayEnabled: false, overlayColor: '#ff6600' }
 
   let progress    = 0
   let playDir     = 1
@@ -422,7 +464,7 @@ export function createImageSorter(imageData, outputCanvas, hDirection, vDirectio
   reSort()
 
   function renderFrame(p) {
-    const isSortLtD = currentAlgorithm === 'sort-light-to-dark'
+    const isSortLtD = rankLerp(currentAlgorithm)
     const ctx = outputCanvas.getContext('2d')
 
     if (!currentHDirection && !currentVDirection) {
@@ -476,12 +518,15 @@ export function createImageSorter(imageData, outputCanvas, hDirection, vDirectio
       }
     }
 
+    const ctx = outputCanvas.getContext('2d')
     if (preRenderedFrames) {
       const idx = Math.round(progress * (preRenderedFrames.length - 1))
-      outputCanvas.getContext('2d').drawImage(preRenderedFrames[idx], 0, 0)
+      ctx.clearRect(0, 0, width, height)
+      ctx.drawImage(preRenderedFrames[idx], 0, 0)
     } else {
       renderFrame(progress)
     }
+    applyPostEffects(ctx, width, height, effects)
 
     if (onTick && now - lastTickTime >= 50) {
       onTick(progress)
@@ -500,6 +545,7 @@ export function createImageSorter(imageData, outputCanvas, hDirection, vDirectio
     setAlgorithm(a)        { currentAlgorithm  = a; preRenderedFrames = null; reSort() },
     setFrameCount(n)       { currentFrameCount = n },
     setPreRendered(frames) { preRenderedFrames = frames },
+    setPostEffects(e)      { effects = e },
     setLoop(v)             { looping = v },
     setPaused(v) {
       paused = v

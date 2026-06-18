@@ -21,6 +21,12 @@ export default function App() {
   const [exportOpen, setExportOpen] = React.useState(false)
   const [liveActive, setLiveActive] = React.useState(false)
 
+  // ── Post effects ───────────────────────────────────────────────────────
+  const [bwEnabled,      setBwEnabled]      = React.useState(false)
+  const [overlayEnabled, setOverlayEnabled] = React.useState(false)
+  const [overlayColor,   setOverlayColor]   = React.useState('#ff6600')
+  const [bgColor,        setBgColor]        = React.useState('#00000000')
+
   const stopFeedRef = React.useRef(null)
 
   // ── Pre-render ─────────────────────────────────────────────────────────
@@ -98,7 +104,11 @@ export default function App() {
             onPreRender={handlePreRender}
             onDiscard={handleDiscard}
             onStopFeed={() => stopFeedRef.current?.()}
-            {...{ image, algorithm, hDirection, vDirection, frameCount, needsPreRender, isPreRendering, liveActive }}
+            onBwEnabled={setBwEnabled}
+            onOverlayEnabled={setOverlayEnabled}
+            onOverlayColor={setOverlayColor}
+            onBgColor={setBgColor}
+            {...{ image, algorithm, hDirection, vDirection, frameCount, needsPreRender, isPreRendering, liveActive, bwEnabled, overlayEnabled, overlayColor, bgColor }}
           />
         </Panel>
 
@@ -123,7 +133,7 @@ export default function App() {
             onRegisterStopFeed={fn => { stopFeedRef.current = fn }}
             onLiveActive={setLiveActive}
             preRenderedFrames={preRendered?.bitmaps ?? null}
-            {...{ image, algorithm, hDirection, vDirection, frameCount, isPreRendering, preRenderProgress, liveActive }}
+            {...{ image, algorithm, hDirection, vDirection, frameCount, isPreRendering, preRenderProgress, liveActive, bwEnabled, overlayEnabled, overlayColor, bgColor }}
           />
         </Panel>
       </Grid>

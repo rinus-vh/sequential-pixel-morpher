@@ -17,6 +17,10 @@ export function OutputPanel({
   isPreRendering,
   preRenderProgress,
   liveActive,
+  bwEnabled,
+  overlayEnabled,
+  overlayColor,
+  bgColor,
   onImage,
   onRegisterDownload,
   onRegisterStopFeed,
@@ -97,6 +101,13 @@ export function OutputPanel({
   useEffect(() => {
     sorterRef.current?.setPreRendered(preRenderedFrames ?? null)
   }, [preRenderedFrames])
+
+  // ── Sync post-effects to sorter ──────────────────────────────────────────
+  useEffect(() => {
+    sorterRef.current?.setPostEffects({ bwEnabled, overlayEnabled, overlayColor })
+  }, [bwEnabled, overlayEnabled, overlayColor])
+
+  const canvasStyle = bgColor ? { backgroundColor: bgColor } : undefined
 
   // ── Pause/resume around pre-rendering ───────────────────────────────────
   useEffect(() => {
@@ -284,7 +295,7 @@ export function OutputPanel({
     return (
       <div className={styles.component}>
         <div className={styles.viewport}>
-          <canvas ref={outputCanvasRef} className={styles.frame} />
+          <canvas ref={outputCanvasRef} className={styles.frame} style={canvasStyle} />
         </div>
         <div className={styles.controls}>
           {scrubBar}
